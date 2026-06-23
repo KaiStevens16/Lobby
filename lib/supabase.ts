@@ -13,8 +13,36 @@ export function hasSupabase(): boolean {
   return Boolean(supabaseUrl() && supabaseServiceKey());
 }
 
+function normalizeSupabaseUrl(raw: string): string | undefined {
+  const value = raw.trim().replace(/\/+$/, "");
+  if (!value) return undefined;
+
+  if (/^[a-z0-9-]+$/i.test(value)) {
+    return `https://${value}.supabase.co`;
+  }
+
+  if (/^[a-z0-9-]+\.supabase\.co$/i.test(value)) {
+    return `https://${value}`;
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.origin;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
 function supabaseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || undefined;
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return undefined;
+  return normalizeSupabaseUrl(raw);
 }
 
 function supabaseServiceKey(): string | undefined {
@@ -26,7 +54,11 @@ export function createServerSupabase(): SupabaseClient | null {
   const key = supabaseServiceKey();
   if (!url || !key) return null;
 
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  try {
+    return createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  } catch {
+    return null;
+  }
 }

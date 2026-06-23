@@ -13,9 +13,10 @@ const LOCAL_FILE = path.join(process.cwd(), ".data", "checkins.json");
 type Store = Record<string, Partial<Record<Member, CheckIn>>>;
 
 export class SupabaseNotConfiguredError extends Error {
-  constructor() {
+  constructor(detail?: string) {
     super(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      detail ??
+        "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL to https://your-project.supabase.co and SUPABASE_SERVICE_ROLE_KEY.",
     );
     this.name = "SupabaseNotConfiguredError";
   }
@@ -68,8 +69,20 @@ async function writeLocal(data: Store): Promise<void> {
 }
 
 async function readStore(): Promise<Store> {
-  if (!hasSupabase()) {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  if (!rawUrl || !rawKey) {
     if (isProduction()) throw new SupabaseNotConfiguredError();
+    return readLocal();
+  }
+
+  if (!hasSupabase()) {
+    if (isProduction()) {
+      throw new SupabaseNotConfiguredError(
+        `Invalid NEXT_PUBLIC_SUPABASE_URL: "${rawUrl}". Use https://your-project.supabase.co`,
+      );
+    }
     return readLocal();
   }
 
