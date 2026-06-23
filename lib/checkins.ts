@@ -12,11 +12,24 @@ const LOCAL_FILE = path.join(process.cwd(), ".data", "checkins.json");
 
 type Store = Record<string, Partial<Record<Member, CheckIn>>>;
 
+export class SupabaseNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
+    this.name = "SupabaseNotConfiguredError";
+  }
+}
+
 export class AlreadyCheckedInError extends Error {
   constructor() {
     super("Already checked in today");
     this.name = "AlreadyCheckedInError";
   }
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 }
 
 function rowToCheckIn(row: CheckInRow): CheckIn {
@@ -55,10 +68,16 @@ async function writeLocal(data: Store): Promise<void> {
 }
 
 async function readStore(): Promise<Store> {
-  if (!hasSupabase()) return readLocal();
+  if (!hasSupabase()) {
+    if (isProduction()) throw new SupabaseNotConfiguredError();
+    return readLocal();
+  }
 
   const supabase = createServerSupabase();
-  if (!supabase) return readLocal();
+  if (!supabase) {
+    if (isProduction()) throw new SupabaseNotConfiguredError();
+    return readLocal();
+  }
 
   const { data, error } = await supabase
     .from("check_ins")
@@ -75,6 +94,7 @@ async function insertCheckIn(
   entry: CheckIn,
 ): Promise<void> {
   if (!hasSupabase()) {
+    if (isProduction()) throw new SupabaseNotConfiguredError();
     const store = await readLocal();
     if (store[date]?.[member]) throw new AlreadyCheckedInError();
     store[date] = { ...(store[date] ?? {}), [member]: entry };
@@ -84,6 +104,7 @@ async function insertCheckIn(
 
   const supabase = createServerSupabase();
   if (!supabase) {
+    if (isProduction()) throw new SupabaseNotConfiguredError();
     const store = await readLocal();
     if (store[date]?.[member]) throw new AlreadyCheckedInError();
     store[date] = { ...(store[date] ?? {}), [member]: entry };

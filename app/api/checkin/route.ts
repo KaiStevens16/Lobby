@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
-import { AlreadyCheckedInError, checkIn, getRecentLogs, getTodayLog } from "@/lib/checkins";
+import {
+  AlreadyCheckedInError,
+  SupabaseNotConfiguredError,
+  checkIn,
+  getRecentLogs,
+  getTodayLog,
+} from "@/lib/checkins";
 import type { Member } from "@/lib/types";
 
 export async function GET() {
-  const [today, recent] = await Promise.all([getTodayLog(), getRecentLogs()]);
-  return NextResponse.json({ today, recent });
+  try {
+    const [today, recent] = await Promise.all([getTodayLog(), getRecentLogs()]);
+    return NextResponse.json({ today, recent });
+  } catch (error) {
+    if (error instanceof SupabaseNotConfiguredError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
@@ -28,6 +41,9 @@ export async function POST(request: Request) {
         { error: "Already checked in today" },
         { status: 409 },
       );
+    }
+    if (error instanceof SupabaseNotConfiguredError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
     }
     throw error;
   }
