@@ -10,19 +10,24 @@ A premium waiting room with a shared check-in portal for Roman and Kai.
 npm install
 ```
 
-2. Copy env and set your Google Meet link:
+2. Copy env and add Supabase credentials:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local`:
+3. Create the database table — in your [Supabase](https://supabase.com) project, open **SQL Editor** and run the contents of [`supabase/schema.sql`](./supabase/schema.sql).
+
+4. Add to `.env.local` (from Supabase **Project Settings → API**):
 
 ```
-NEXT_PUBLIC_MEET_LINK=https://meet.google.com/your-actual-link
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-3. Run locally:
+Use the **service role** key (server-only). Never expose it in client code.
+
+5. Run locally:
 
 ```bash
 npm run dev
@@ -30,17 +35,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Check-ins are stored locally in `.data/checkins.json` during development.
+Without Supabase env vars, check-ins fall back to `.data/checkins.json` during local development.
 
 ## Deploy to Vercel
 
 1. Push to GitHub and import the repo in [Vercel](https://vercel.com).
-2. Add `NEXT_PUBLIC_MEET_LINK` in Project Settings → Environment Variables.
-3. **For shared check-ins in production**, add a [Vercel KV](https://vercel.com/docs/storage/vercel-kv) store to the project. Vercel will inject `KV_REST_API_URL` and `KV_REST_API_TOKEN` automatically.
-
-Without KV, check-ins won't persist across serverless instances in production.
+2. Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in **Project Settings → Environment Variables**.
+3. Run `supabase/schema.sql` in your Supabase project if you haven't already.
 
 ## Pages
 
-- `/` — Waiting room with Meet link
+- `/` — Waiting room
 - `/lobby` — Check-in portal for Roman and Kai

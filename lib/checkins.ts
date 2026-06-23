@@ -1,10 +1,13 @@
-import { kv } from "@vercel/kv";
 import { promises as fs } from "fs";
 import path from "path";
+import {
+  createServerSupabase,
+  hasSupabase,
+  type CheckInRow,
+} from "./supabase";
 import type { CheckIn, DayLog, Member } from "./types";
 import { todayKey } from "./types";
 
-const KV_KEY = "lobby:checkins";
 const LOCAL_FILE = path.join(process.cwd(), ".data", "checkins.json");
 
 type Store = Record<string, Partial<Record<Member, CheckIn>>>;
@@ -16,8 +19,25 @@ export class AlreadyCheckedInError extends Error {
   }
 }
 
-function hasKv(): boolean {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function rowToCheckIn(row: CheckInRow): CheckIn {
+  return {
+    member: row.member as Member,
+    time: row.timestamp,
+    timestamp: row.timestamp,
+    ...(row.note ? { note: row.note } : {}),
+    ...(row.doing_today ? { doingToday: row.doing_today } : {}),
+    ...(row.gym_session ? { gymSession: row.gym_session } : {}),
+  };
+}
+
+function rowsToStore(rows: CheckInRow[]): Store {
+  const store: Store = {};
+  for (const row of rows) {
+    const member = row.member as Member;
+    if (!store[row.date]) store[row.date] = {};
+    store[row.date]![member] = rowToCheckIn(row);
+  }
+  return store;
 }
 
 async function readLocal(): Promise<Store> {
@@ -35,19 +55,53 @@ async function writeLocal(data: Store): Promise<void> {
 }
 
 async function readStore(): Promise<Store> {
-  if (hasKv()) {
-    const data = await kv.get<Store>(KV_KEY);
-    return data ?? {};
-  }
-  return readLocal();
+  if (!hasSupabase()) return readLocal();
+
+  const supabase = createServerSupabase();
+  if (!supabase) return readLocal();
+
+  const { data, error } = await supabase
+    .from("check_ins")
+    .select("date, member, timestamp, note, doing_today, gym_session")
+    .order("date", { ascending: false });
+
+  if (error) throw error;
+  return rowsToStore((data ?? []) as CheckInRow[]);
 }
 
-async function writeStore(data: Store): Promise<void> {
-  if (hasKv()) {
-    await kv.set(KV_KEY, data);
+async function insertCheckIn(
+  date: string,
+  member: Member,
+  entry: CheckIn,
+): Promise<void> {
+  if (!hasSupabase()) {
+    const store = await readLocal();
+    if (store[date]?.[member]) throw new AlreadyCheckedInError();
+    store[date] = { ...(store[date] ?? {}), [member]: entry };
+    await writeLocal(store);
     return;
   }
-  await writeLocal(data);
+
+  const supabase = createServerSupabase();
+  if (!supabase) {
+    const store = await readLocal();
+    if (store[date]?.[member]) throw new AlreadyCheckedInError();
+    store[date] = { ...(store[date] ?? {}), [member]: entry };
+    await writeLocal(store);
+    return;
+  }
+
+  const { error } = await supabase.from("check_ins").insert({
+    date,
+    member,
+    timestamp: entry.timestamp,
+    note: entry.note ?? null,
+    doing_today: entry.doingToday ?? null,
+    gym_session: entry.gymSession ?? null,
+  });
+
+  if (error?.code === "23505") throw new AlreadyCheckedInError();
+  if (error) throw error;
 }
 
 export async function getTodayLog(): Promise<DayLog> {
@@ -62,12 +116,6 @@ export async function checkIn(
 ): Promise<DayLog> {
   const date = todayKey();
   const now = new Date();
-  const store = await readStore();
-
-  if (store[date]?.[member]) {
-    throw new AlreadyCheckedInError();
-  }
-
   const note = notes?.note?.trim() || undefined;
 
   const entry: CheckIn = {
@@ -77,10 +125,10 @@ export async function checkIn(
     ...(note ? { note } : {}),
   };
 
-  store[date] = { ...(store[date] ?? {}), [member]: entry };
-  await writeStore(store);
+  await insertCheckIn(date, member, entry);
 
-  return { date, checkIns: store[date] };
+  const store = await readStore();
+  return { date, checkIns: store[date] ?? { [member]: entry } };
 }
 
 export async function getRecentLogs(days = 7): Promise<DayLog[]> {
