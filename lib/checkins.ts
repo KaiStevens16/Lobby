@@ -9,6 +9,13 @@ const LOCAL_FILE = path.join(process.cwd(), ".data", "checkins.json");
 
 type Store = Record<string, Partial<Record<Member, CheckIn>>>;
 
+export class AlreadyCheckedInError extends Error {
+  constructor() {
+    super("Already checked in today");
+    this.name = "AlreadyCheckedInError";
+  }
+}
+
 function hasKv(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
@@ -49,15 +56,25 @@ export async function getTodayLog(): Promise<DayLog> {
   return { date, checkIns: store[date] ?? {} };
 }
 
-export async function checkIn(member: Member): Promise<DayLog> {
+export async function checkIn(
+  member: Member,
+  notes?: { note?: string },
+): Promise<DayLog> {
   const date = todayKey();
   const now = new Date();
   const store = await readStore();
+
+  if (store[date]?.[member]) {
+    throw new AlreadyCheckedInError();
+  }
+
+  const note = notes?.note?.trim() || undefined;
 
   const entry: CheckIn = {
     member,
     time: now.toISOString(),
     timestamp: now.toISOString(),
+    ...(note ? { note } : {}),
   };
 
   store[date] = { ...(store[date] ?? {}), [member]: entry };
