@@ -2,7 +2,7 @@
 
 create table if not exists public.check_ins (
   date text not null,
-  member text not null check (member in ('roman', 'kai')),
+  member text not null check (member in ('roman', 'kai', 'grey')),
   timestamp timestamptz not null,
   note text,
   doing_today text,

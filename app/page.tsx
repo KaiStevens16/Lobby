@@ -14,7 +14,7 @@ export default function HomePage() {
         <div className="animate-fade-up-delay-1 gold-line w-32 mx-auto mb-10" />
 
         <p className="animate-fade-up-delay-2 text-lg sm:text-xl text-black/55 font-light leading-relaxed max-w-md mx-auto mb-14">
-          Let&apos;s get the fuck after it today
+          Let&apos;s get the fuck after it today, fellas
         </p>
 
         <div className="animate-fade-up-delay-3 flex justify-center">
@@ -27,7 +27,7 @@ export default function HomePage() {
         </div>
 
         <p className="animate-fade-up-delay-3 mt-16 text-xs text-black/30 tracking-widest uppercase">
-          Roman &amp; Kai
+          Roman, Kai &amp; Grey
         </p>
       </div>
     </main>

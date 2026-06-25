@@ -1,4 +1,4 @@
-export type Member = "roman" | "kai";
+export type Member = "roman" | "kai" | "grey";
 
 export interface CheckIn {
   member: Member;
@@ -17,6 +17,7 @@ export interface DayLog {
 export const MEMBERS: { id: Member; name: string; initial: string }[] = [
   { id: "roman", name: "Roman", initial: "R" },
   { id: "kai", name: "Kai", initial: "K" },
+  { id: "grey", name: "Grey", initial: "G" },
 ];
 
 export function todayKey(): string {

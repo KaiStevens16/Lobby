@@ -7,6 +7,9 @@ import {
   getTodayLog,
 } from "@/lib/checkins";
 import type { Member } from "@/lib/types";
+import { MEMBERS } from "@/lib/types";
+
+const VALID_MEMBERS = new Set(MEMBERS.map(({ id }) => id));
 
 export async function GET() {
   try {
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
     note?: string;
   };
 
-  if (body.member !== "roman" && body.member !== "kai") {
+  if (!body.member || !VALID_MEMBERS.has(body.member as Member)) {
     return NextResponse.json({ error: "Invalid member" }, { status: 400 });
   }
 

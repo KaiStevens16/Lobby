@@ -13,10 +13,20 @@ import {
   type Member,
 } from "@/lib/types";
 
-const EMPTY_NOTES: Record<Member, string> = {
-  roman: "",
-  kai: "",
-};
+function emptyNotes(): Record<Member, string> {
+  return Object.fromEntries(MEMBERS.map(({ id }) => [id, ""])) as Record<
+    Member,
+    string
+  >;
+}
+
+function notesFromToday(
+  checkIns: Partial<Record<Member, CheckIn>>,
+): Record<Member, string> {
+  return Object.fromEntries(
+    MEMBERS.map(({ id }) => [id, noteFromCheckIn(checkIns[id])]),
+  ) as Record<Member, string>;
+}
 
 function noteFromCheckIn(checkIn?: CheckIn): string {
   return getCheckInNote(checkIn);
@@ -26,7 +36,7 @@ export default function LobbyPage() {
   const [today, setToday] = useState<DayLog | null>(null);
   const [recent, setRecent] = useState<DayLog[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
-  const [draftNotes, setDraftNotes] = useState(EMPTY_NOTES);
+  const [draftNotes, setDraftNotes] = useState(emptyNotes);
 
   const fetchLogs = useCallback(async () => {
     const res = await fetch("/api/checkin");
@@ -34,10 +44,7 @@ export default function LobbyPage() {
     const data = (await res.json()) as { today: DayLog; recent: DayLog[] };
     setToday(data.today);
     setRecent(data.recent);
-    setDraftNotes({
-      roman: noteFromCheckIn(data.today.checkIns.roman),
-      kai: noteFromCheckIn(data.today.checkIns.kai),
-    });
+    setDraftNotes(notesFromToday(data.today.checkIns));
   }, []);
 
   useEffect(() => {
@@ -117,7 +124,7 @@ export default function LobbyPage() {
               {formatDate(today.date)}
             </p>
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {MEMBERS.map(({ id, name, initial }) => {
                 const checkIn = today.checkIns[id];
                 const isLoading = loading === id;
@@ -246,7 +253,7 @@ export default function LobbyPage() {
                       })}
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                     {MEMBERS.map(({ id, name }) => {
                       const checkIn = log.checkIns[id];
                       const note = getCheckInNote(checkIn);

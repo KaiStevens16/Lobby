@@ -11,6 +11,7 @@ import {
 const MEMBER_COLORS: Record<Member, string> = {
   roman: "#a8894a",
   kai: "#c9a962",
+  grey: "#6b7280",
 };
 
 type PhotoConfig = {
@@ -18,12 +19,13 @@ type PhotoConfig = {
   zoom?: number;
   offsetX?: number;
   offsetY?: number;
-  anchor?: "center" | "top";
+  anchor?: "center" | "top" | "bottom";
 };
 
 const MEMBER_PHOTOS: Partial<Record<Member, PhotoConfig>> = {
   roman: { src: "/roman.png", zoom: 1.55, offsetY: 1, anchor: "top" },
   kai: { src: "/kai.png", zoom: 1.65, offsetY: 0, anchor: "top" },
+  grey: { src: "/grey.png", zoom: 1.5, offsetY: -2, anchor: "center" },
 };
 
 const PHOTO_SIZE = 28;
@@ -38,7 +40,11 @@ function photoLayout(photo: PhotoConfig) {
     y: base + (photo.offsetY ?? 0),
     size,
     preserveAspectRatio:
-      photo.anchor === "top" ? "xMidYMin slice" : "xMidYMid slice",
+      photo.anchor === "top"
+        ? "xMidYMin slice"
+        : photo.anchor === "bottom"
+          ? "xMidYMax slice"
+          : "xMidYMid slice",
   };
 }
 
